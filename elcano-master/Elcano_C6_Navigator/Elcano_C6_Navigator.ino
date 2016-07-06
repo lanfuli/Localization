@@ -266,14 +266,14 @@ void initialize()
   // SendState(C4);
     // Wait to get path from C4
 //    while (mission[1].latitude > 90)
-    {
+    //{
       /* If (message from C4)
       {
         ReadState(C4);  // get initial route and speed
       }
        Read GPS, compass and IMU and update their estimates.
      */
-    }
+    //}
     /* disable GPS messages;
     for (char i='0'; i < '6'; i++)
     {
@@ -414,9 +414,18 @@ void loop()
       ReadLandmarks(C4);
     }
     // Fuse all position estimates with a Kalman Filter */
+    // Added by Pengfei 
+    if (GPS_available) {
     deltaT_ms = GPS_reading.time_ms - estimated_position.time_ms;
     estimated_position.fuse(GPS_reading, deltaT_ms);
     estimated_position.time_ms = GPS_reading.time_ms;
+    } else { // When the GPS is not available 
+      deltaT_ms = ;
+      estimated_position.fuse;
+      estimated_position.time_ms = ;
+    }
+
+   // End of change 
     
     // Added by Varsha
     // Send vehicle state to C6 and C4.
