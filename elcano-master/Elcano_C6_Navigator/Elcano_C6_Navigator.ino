@@ -174,7 +174,7 @@ char* obstacleDetect()
   LeftRange/100, LeftRange%100, Range/100, Range%100, RightRange/100, RightRange%100);
 
   return ObstacleString;
-}
+} 
 /*---------------------------------------------------------------------------------------*/
 /* Feb 23, 2016  TCF.  This instance of WheelRev is depricated.
    Current code for WheelRev is in Elcano_C2_LowLevel.
