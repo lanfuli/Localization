@@ -430,15 +430,15 @@ void loop()
     }
     // Fuse all position estimates with a Kalman Filter */
     // Added by Pengfei 
-    if (GPS_available) {
+  //  if (GPS_available) {
     deltaT_ms = GPS_reading.time_ms - estimated_position.time_ms;
     estimated_position.fuse(GPS_reading, deltaT_ms);
     estimated_position.time_ms = GPS_reading.time_ms;
-    } else { // When the GPS is not available 
+   /* } else { // When the GPS is not available 
       deltaT_ms = ;
       estimated_position.fuse;
       estimated_position.time_ms = millis()//?;
-    }
+    }*/
 
    // End of change 
     
@@ -465,6 +465,7 @@ void loop()
       // Add by Pengfei
     // To get the speed of the position at the given time  
     estimated_position.speed_mmPs = C2_Results.speed_cmPs;
+    // The distance will be estimated_position.speed_mmPs * deltaT_ms 
     }
         
     writeSerial(&Serial2, &C4_Results);
