@@ -160,6 +160,21 @@ waypoint estimated_position;
 //instrument IMU;
 const unsigned long LoopPeriod = 100;  // msec
 
+ //Added temp by Varsha
+void displayResults(SerialData &Results)
+{
+    Serial.println("Printing SerialData results");
+    Serial.println(Results.kind);
+    Serial.println(Results.number);
+    Serial.println(Results.speed_cmPs);
+    Serial.println(Results.angle_deg);    // front wheels
+    Serial.println(Results.bearing_deg);  // compass direction
+    Serial.println(Results.posE_cm);
+    Serial.println(Results.posN_cm);
+    Serial.println(Results.probability);
+    Serial.println(Results.distance_travelled_cm);
+}
+
 //---------------------------------------------------------------------------
 char* obstacleDetect()
 {
@@ -422,7 +437,7 @@ void loop()
     } else { // When the GPS is not available 
       deltaT_ms = ;
       estimated_position.fuse;
-      estimated_position.time_ms = ;
+      estimated_position.time_ms = millis()//?;
     }
 
    // End of change 
@@ -446,9 +461,15 @@ void loop()
       // Updating the C4_Results with the
       // odometer details from C2
       C4_Results.speed_cmPs = C2_Results.speed_cmPs;
+    
+      // Add by Pengfei
+    // To get the speed of the position at the given time  
+    estimated_position.speed_mmPs = C2_Results.speed_cmPs;
     }
         
     writeSerial(&Serial2, &C4_Results);
+
+    
     
 /*  Serial.print("time, gps, dt_ms = ");
     Serial.print(time, DEC); Serial.print(", ");
