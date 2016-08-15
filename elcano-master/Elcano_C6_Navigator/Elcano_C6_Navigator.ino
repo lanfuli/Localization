@@ -313,6 +313,35 @@ void TestSpeed ( SerialData &data )
 */
 /*---------------------------------------------------------------------------------------*/
 
+
+//Added by Pengfei Zhu
+// To calculate the lines by giving the point 
+// This will be used for find the crosspoint to find the fuzzy numbers
+long getSlope (long x1, long x2, long y1, long y2) {
+  long k;
+  k = (y1-y2)/(x1-x2);
+  return k;
+}
+
+long getIntercept (long x1, long x2, long y1, long y2) {
+  long d;
+  long k = getSlope(x1, x2, y1, y2);
+  return d;
+}
+
+long crossPointX (long k1, long d1, long k2, long d2) {
+  long x;
+  x = (d2-d1)/(k1-k2);
+  return x;
+}
+
+long crossPointY (long k1, long d1, long k2, long d2) {
+  long x;
+  long y;
+  x = crossPointX (k1, d1, k2, d2);
+  y = k1 * x + d1;
+  return y;
+}
 void initialize()
 {
   pinMode(GPS_POWER, OUTPUT);
@@ -563,12 +592,12 @@ void loop()
     // Send vehicle state to C6 and C4.
 
      // Added by Pengfei 
-    // The test code before result sending to C4 
+   /* // The test code before result sending to C4 
     Serial.print("Test case before the result sending to the C4");
     Serial.print("current heading is: " );
     Serial.print(CurrentHeading);
     displayResults (C4_Results);
-    Serial.print("End of the test case before the result sending to the C4");
+    Serial.print("End of the test case before the result sending to the C4");*/
 
     // Preparing Result struct to send data to C4
     C4_Results.Clear();
