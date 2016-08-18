@@ -1,7 +1,5 @@
 //#include <GPS.h>
-//testing Github
-//
-//
+
 /*
 Elcano Module C6: Navigator.
   Includes C5 Obstacle detection.
@@ -86,8 +84,10 @@ Serial lines:
 #include <Matrix.h>
 
 #include <Wire.h>
+//#include <Adafruit_LSM303.h>
 #include <Adafruit_LSM303_U.h>
 #include <Elcano_Serial.h>
+#include <FusionData.h>
 
 /* Assign a unique ID to this sensor at the same time */
 Adafruit_LSM303_Mag mag = Adafruit_LSM303_Mag(1366123);
@@ -146,7 +146,7 @@ const char* ObstHeader ="Left,Front,Right,Busy";
 // Added by Varsha
 SerialData C2_Results;
 SerialData C4_Results;
-const int HEADING_PRECISION = 1000;
+
 
 //#define WHEEL_DIAMETER_MM 397
 
@@ -161,6 +161,8 @@ waypoint GPS_reading;
 waypoint estimated_position;
 //instrument IMU;
 const unsigned long LoopPeriod = 100;  // msec
+
+PositionData oldPos, newPos;
 
 /* Structure to store the distance history */
 struct SpeedData {
@@ -179,42 +181,6 @@ struct SpeedData {
     
 } history;
 
-long ComputeDistanceAndPos( SpeedData &hist )
-{
-   long distance_mm = 0;
-   // To check if this is new reading or the same reading
-   if ( hist.newTime_ms > hist.olderTime_ms ) {
-       // Calculate distance
-       distance_mm = ( hist.newTime_ms - hist.olderTime_ms ) * (( hist.newSpeed_cmPs * 10 ) / 1000 );
-
-       Serial.print("ComputeDistanceAndPos::NewTime:");
-       Serial.println(hist.newTime_ms);
-       Serial.print("ComputeDistanceAndPos::OldTime:");
-       Serial.println(hist.olderTime_ms);
-       Serial.print("ComputeDistanceAndPos::newSpeed_cmPs:");
-       Serial.println(hist.newSpeed_cmPs);
-       Serial.print("ComputeDistanceAndPos::distance:");
-       Serial.println(distance_mm);
-           
-       hist.newX_pos = cos( ( hist.newHeading / HEADING_PRECISION ) * M_PI / 180 ) * distance_mm;
-       hist.newY_pos = sin( ( hist.newHeading / HEADING_PRECISION ) * M_PI / 180 ) * distance_mm;
-       
-       // Swapping variables
-       hist.olderSpeed_cmPs = hist.newSpeed_cmPs;
-       hist.olderTime_ms = hist.newTime_ms;
-       hist.oldHeading = hist.newHeading;
-       hist.olderX_pos = hist.newX_pos;
-       hist.olderY_pos = hist.newY_pos;
-       
-       Serial.print("ComputeDistanceAndPos::X_pos:");
-       Serial.println(hist.olderX_pos);
-       Serial.print("ComputeDistanceAndPos::Y_pos:");
-       Serial.println(hist.olderY_pos);         
-   }
-   return distance_mm;
-   
-}  
-
 /* This procedure accepts SerialData structure and prints all the members of the struct to a serial
    output device. This will be only used for debugging purposes
    
@@ -222,11 +188,10 @@ long ComputeDistanceAndPos( SpeedData &hist )
 */
 void displayResults(SerialData &Results)
 {
-    Serial.println("Printing SerialData results");
     Serial.print("SerialData::Kind :" );
     Serial.println(Results.kind);
-    Serial.print("SerialData::Number:");
-    Serial.println(Results.number);
+    Serial.print("SerialData::Number:");    
+    Serial.println(Results.number);    
     Serial.print("SerialData::speed_cmPs:");
     Serial.println(Results.speed_cmPs);
     Serial.print("SerialData::angle_deg:");
@@ -257,7 +222,7 @@ char* obstacleDetect()
   LeftRange/100, LeftRange%100, Range/100, Range%100, RightRange/100, RightRange%100);
 
   return ObstacleString;
-} 
+}
 /*---------------------------------------------------------------------------------------*/
 /* Feb 23, 2016  TCF.  This instance of WheelRev is depricated.
    Current code for WheelRev is in Elcano_C2_LowLevel.
@@ -277,7 +242,7 @@ long GetHeading(void)
     Serial.print(" Y:");
     Serial.print(event.magnetic.y);
     Serial.println("");
-
+    
     //Calculate the current heading (angle of the vector y,x)
     //Normalize the heading
     float heading = (atan2(event.magnetic.y, event.magnetic.x) * 180) / M_PI;
@@ -286,14 +251,9 @@ long GetHeading(void)
     {
         heading = 360 + heading;
     }
-    // Converting it to minutes
-    //long heading_min=(long)(( heading * 100 ) / 100 * 60 ) + (long) heading%100;    
-    //return heading_min;
-
     // Converting heading to x1000
-    return long (heading * HEADING_PRECISION );
+    return ((long)(heading * HEADING_PRECISION ));
 }
-
 
 /*
  * Test Code to be removed
@@ -311,37 +271,10 @@ void TestSpeed ( SerialData &data )
 /*
  * End of Test Code
 */
+
+
 /*---------------------------------------------------------------------------------------*/
 
-
-//Added by Pengfei Zhu
-// To calculate the lines by giving the point 
-// This will be used for find the crosspoint to find the fuzzy numbers
-long getSlope (long x1, long x2, long y1, long y2) {
-  long k;
-  k = (y1-y2)/(x1-x2);
-  return k;
-}
-
-long getIntercept (long x1, long x2, long y1, long y2) {
-  long d;
-  long k = getSlope(x1, x2, y1, y2);
-  return d;
-}
-
-long crossPointX (long k1, long d1, long k2, long d2) {
-  long x;
-  x = (d2-d1)/(k1-k2);
-  return x;
-}
-
-long crossPointY (long k1, long d1, long k2, long d2) {
-  long x;
-  long y;
-  x = crossPointX (k1, d1, k2, d2);
-  y = k1 * x + d1;
-  return y;
-}
 void initialize()
 {
   pinMode(GPS_POWER, OUTPUT);
@@ -394,6 +327,7 @@ void initialize()
   GPS_reading = estimated_position;
   GPSString = estimated_position.formPointString();
   Serial.println(GPSString);
+
   // Set Odometer to 0.
   // Set lateral deviation to 0.
   // Read compass.
@@ -425,12 +359,17 @@ void initialize()
     // ready to roll
     // Fuse all position estimates.
     // Send vehicle state to C3 and C4.
+    
+    
 }
+
+
 /*---------------------------------------------------------------------------------------*/
 
 void setup()
 {
-    randomSeed(analogRead(0));
+  
+randomSeed(analogRead(0));
     pinMode(Rx0, INPUT);
     pinMode(Tx0, OUTPUT);
     pinMode(GPS_RX, INPUT);
@@ -452,12 +391,12 @@ void setup()
     pinMode(GPS_GREEN_LED, OUTPUT);
     digitalWrite(GPS_GREEN_LED, LOW);
     digitalWrite(GPS_RED_LED, LOW);
-    
-    /* Initializing the history struct to default values
+
+    /* Initializing old PositionData struct to default values
      *  Added by Varsha
      */
-    history.olderSpeed_cmPs = 0;
-    history.olderTime_ms = millis(); 
+    oldPos.Clear();
+	oldPos.time_ms = millis();
 
     //Enable auto-gain
     mag.enableAutoRange(true);
@@ -471,11 +410,9 @@ void setup()
         Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
         while(1);
     }
-    
-/*
     initialize();
-    //Serial.print("Initializing GPS SD card...");
-*/
+    Serial.print("Initializing GPS SD card...");
+
     // see if the card is present and can be initialized:
     if (!SD.begin(chipSelect))
     {
@@ -543,7 +480,7 @@ void loop()
     Set attitude.
     Read Hall Odometer;  */
 
-//   IMU.Read(GPS_reading);
+   //IMU.Read(GPS_reading);
 
     // Added by Varsha - to get heading
     CurrentHeading = GetHeading();
@@ -566,38 +503,12 @@ void loop()
       ReadLandmarks(C4);
     }
     // Fuse all position estimates with a Kalman Filter */
-    // Added by Pengfei 
-  //  if (GPS_available) {
     deltaT_ms = GPS_reading.time_ms - estimated_position.time_ms;
     estimated_position.fuse(GPS_reading, deltaT_ms);
     estimated_position.time_ms = GPS_reading.time_ms;
-
-    // Added by Pengfei 
-    // The test code for testing the reading result from GPS 
-    Serial.print("The test case for testing the reading result from GPS: ");
-    Serial.print("time, gps, dt_ms = ");
-    Serial.print(time, DEC); Serial.print(", ");
-    Serial.print(GPS_reading.time_ms, DEC); Serial.print(", ");
-    Serial.println(deltaT_ms, DEC);
-    Serial.println("End of the test case for testing the reading result from GPS.");
-   /* } else { // When the GPS is not available 
-      deltaT_ms = ;
-      estimated_position.fuse;
-      estimated_position.time_ms = millis()//?;
-    }*/
-
-   // End of change 
     
     // Added by Varsha
     // Send vehicle state to C6 and C4.
-
-     // Added by Pengfei 
-   /* // The test code before result sending to C4 
-    Serial.print("Test case before the result sending to the C4");
-    Serial.print("current heading is: " );
-    Serial.print(CurrentHeading);
-    displayResults (C4_Results);
-    Serial.print("End of the test case before the result sending to the C4");*/
 
     // Preparing Result struct to send data to C4
     C4_Results.Clear();
@@ -606,22 +517,12 @@ void loop()
     C4_Results.posN_cm = estimated_position.north_mm;
     C4_Results.kind = MSG_GOAL;
 
-    // Added by Pengfei 
-    // The test code after the result sending to C4 to compare the infomation changing after the resulte are sent to C4
-    Serial.print("Test case after the result sending to the C4");
-    Serial.print("current heading is: " );
-    Serial.print(CurrentHeading);
-    displayResults (C4_Results);
-    Serial.print("End of the test case after the result sending to the C4");
-
+    //Sending GPS position from C6 to C2
+    C2_Results.Clear();    
+    C2_Results.posE_cm = estimated_position.east_mm/10;
+    C2_Results.posN_cm = estimated_position.north_mm/10;
+    C2_Results.kind = MSG_SENSOR;
     
-    // Added by Pengfei 
-    // The test code to produce the infomation of C2 before reading data from C2 using Elcano_Serial 
-    Serial.print("Test case which produce the infomation of C2 before reading data from C2 using Elcano_Serial ");
-    displayResults (C2_Results);
-    Serial.print("End of the test case after the result sending to the C2");
-
-
     // Read data from C2 using Elcano_Serial
     C2_Results.Clear();
     readSerial(&Serial2, &C2_Results);
@@ -630,61 +531,25 @@ void loop()
     
     if ( C2_Results.kind == MSG_SENSOR )
     {
-      // Added by Pengfei 
-      // The test code to output the information of C4 and history before updating with C2 data 
-      Serial.print("Test case to output the information of C4 and history before updating with C2 data");
-      Serial.print("The speed from C4");
-      Serial.print(C4_Results.speed_cmPs);
-      Serial.print("The new speed for the bicycle");
-      Serial.print(history.newSpeed_cmPs);
-      Serial.print("The new start time for the bicycle");
-      Serial.print(history.newTime_ms);
-      Serial.print("The new heading for the bicycle");
-      Serial.print(history.newHeading);
-      Serial.print("End of test case");
-      
-      
-      
       // Updating the C4_Results with the
       // odometer details from C2
       C4_Results.speed_cmPs = C2_Results.speed_cmPs;
+      
+	  newPos.speed_cmPs = C2_Results.speed_cmPs;
+	  newPos.bearing_deg = CurrentHeading;
+	  newPos.time_ms = time;
 
-      history.newSpeed_cmPs = C2_Results.speed_cmPs;
-      history.newTime_ms = time;
-      history.newHeading = CurrentHeading;
-      long dist_travelled = ComputeDistanceAndPos(history);
-
-      // Added by Pengfei 
-      // The test code to output the information of C4 and history after updating with C2 data 
-      Serial.print("Test case to output the information of C4 and history after updating with C2 data");
-      Serial.print("The speed from C4");
-      Serial.print(C4_Results.speed_cmPs);
-      Serial.print("The new speed for the bicycle");
-      Serial.print(history.newSpeed_cmPs);
-      Serial.print("The new start time for the bicycle");
-      Serial.print(history.newTime_ms);
-      Serial.print("The new heading for the bicycle");
-      Serial.print(history.newHeading);
-      Serial.print("End of test case");
-
-      // Added by Pengfei 
-      // The test code for the case when teh ifnomration 
-    
-      // Add by Pengfei
-    // To get the speed of the position at the given time  
-    //estimated_position.speed_mmPs = C2_Results.speed_cmPs;
-    // The distance will be estimated_position.speed_mmPs * deltaT_ms 
+      ComputePositionWithDR(oldPos, newPos);
     }
         
     writeSerial(&Serial2, &C4_Results);
-
+    writeSerial(&Serial2, &C2_Results);   
     
-    
-/*  Serial.print("time, gps, dt_ms = ");
+    Serial.print("time, gps, dt_ms = ");
     Serial.print(time, DEC); Serial.print(", ");
     Serial.print(GPS_reading.time_ms, DEC); Serial.print(", ");
     Serial.println(deltaT_ms, DEC);
-*/
+
     // Send vehicle state to C3 and C4.
 
     // open the file. note that only one file can be open at a time,
@@ -742,6 +607,7 @@ void loop()
   }
 
 }
+
 
 #ifdef SIMULATOR
 } // end namespace

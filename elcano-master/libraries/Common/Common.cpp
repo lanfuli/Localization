@@ -427,7 +427,7 @@ bool waypoint::AcquireGPRMC(unsigned long max_wait_ms)
          return false;
       }
     }
-//    Serial.println("Read line");
+    //Serial.println("Read line");
     Serial.println(buffer);
     // check if $GPRMC (global positioning fixed data)
     if (strncmp(buffer, "$GPRMC",6) == 0) 
