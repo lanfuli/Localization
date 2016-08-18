@@ -273,6 +273,24 @@ void TestSpeed ( SerialData &data )
 */
 
 
+
+//Added by Pengfei Zhu
+// To calculate the lines by giving the point 
+// This will be used for find the crosspoint to find the fuzzy numbers
+long getSlope (long x1, long x2, long y1, long y2) {
+  long k;
+  k = (y1-y2)/(x1-x2);
+  return k;
+}
+
+long getIntercept (long x1, long x2, long y1, long y2) {
+  long d;
+  long k = getSlope(x1, x2, y1, y2);
+  d = y1 - k * x1;
+  return d;
+}
+
+
 /*---------------------------------------------------------------------------------------*/
 
 void initialize()
