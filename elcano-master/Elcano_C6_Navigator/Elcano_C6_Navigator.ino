@@ -326,6 +326,7 @@ long getSlope (long x1, long x2, long y1, long y2) {
 long getIntercept (long x1, long x2, long y1, long y2) {
   long d;
   long k = getSlope(x1, x2, y1, y2);
+  d = y1 - k * x1;
   return d;
 }
 
